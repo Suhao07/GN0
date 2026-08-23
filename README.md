@@ -244,7 +244,7 @@ If GN0 is useful for your research, please cite our paper:
 ```bibtex
 @article{li2026gn0,
   title={GN0: Toward a Unified Paradigm for Generation, Evaluation, and Policy Learning in Visual-Language Navigation},
-  author={Li, Xinhai and Zhang, Xiaotao and Huang, Yuehao and Dong, Jiankun and Wang, Tianhang and Zhou, Sunyao and Wu, Yunzi and Sun, Chengnuo and Ge, Yunfei and Weng, Qizhen and Zhang, Chi and Bai, Chenjia and Li, Xuelong},
+  author={Li, Xinhai and Zhang, Xiaotao and Huang, Yuehao and Dong, Jiankun and Wang, Tianhang and Zhou, Sunyao and Wu, Yunzi and Sun, Chengnuo and Ge, Yunfei and Weng, Qizhen and others},
   journal={arXiv preprint arXiv:2606.03682},
   year={2026}
 }
