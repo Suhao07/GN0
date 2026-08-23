@@ -1,5 +1,5 @@
 
-.codex
+.codex-home
 tmp
 model_zoo
 icons
@@ -17,6 +17,10 @@ Thumbs.db
 *.pyc
 *.pyo
 __pycache__/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 
 *.log
 

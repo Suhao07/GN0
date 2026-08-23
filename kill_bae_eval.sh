@@ -1,1 +1,0 @@
-ps aux | grep 'run.py' | grep 'bae' | grep -v grep | awk '{print $2}' | xargs kill

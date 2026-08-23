@@ -12,7 +12,9 @@ opencv-python>=4.8.0
 pillow>=10.0.0
 tqdm>=4.65.0
 rich>=13.0.0
-debugpy
+attrs>=23.0.0
+imageio>=2.31.0
+imageio-ffmpeg>=0.4.9
 tensorboard
 msgpack>=1.0.0
 websockets>=12.0

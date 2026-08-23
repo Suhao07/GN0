@@ -1,0 +1,81 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bae"
+version = "2.0.0"
+description = "GN0 benchmark evaluation and GammaNav BAE navigation policy"
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "TeleHuman Research" }]
+keywords = [
+    "embodied-ai",
+    "gaussian-splatting",
+    "vision-language-navigation",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "accelerate>=1.2.1",
+    "attrs>=23.0",
+    "imageio>=2.31",
+    "imageio-ffmpeg>=0.4.9",
+    "msgpack>=1.0",
+    "torch>=2.4",
+    "transformers>=4.57.1,<5.0",
+    "numpy>=1.24",
+    "opencv-python>=4.8",
+    "pillow>=10",
+    "pyarrow>=14",
+    "scipy>=1.10",
+    "tqdm>=4.65",
+    "websockets>=12",
+]
+
+[project.optional-dependencies]
+dev = [
+    "build>=1.2",
+    "pytest>=7",
+    "ruff>=0.9",
+]
+
+[project.urls]
+Homepage = "https://telehuman-gn0.github.io/"
+Documentation = "https://github.com/TeleHuman/GN0#readme"
+Repository = "https://github.com/TeleHuman/GN0"
+Issues = "https://github.com/TeleHuman/GN0/issues"
+Paper = "https://arxiv.org/abs/2606.03682"
+
+[project.scripts]
+gn0-eval-bae = "gn0.evaluation.local:main"
+gn0-eval-remote = "gn0.evaluation.remote:main"
+gn0-analyze-results = "gn0.analysis.results:main"
+gn0-analyze-stop-reasons = "gn0.analysis.stop_reasons:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["gammanav*", "gn0*"]
+namespaces = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = ["data", "model_zoo", "tmp", "GN-Bench-Tools"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+exclude = ["GN-Bench-Tools"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]

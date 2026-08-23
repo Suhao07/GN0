@@ -1,0 +1,71 @@
+cff-version: 1.2.0
+message: "If you use GN0 in your research, please cite the accompanying paper."
+title: "GN0"
+type: software
+version: 2.0.0
+repository-code: "https://github.com/TeleHuman/GN0"
+url: "https://telehuman-gn0.github.io/"
+authors:
+  - family-names: Li
+    given-names: Xinhai
+  - family-names: Zhang
+    given-names: Xiaotao
+  - family-names: Huang
+    given-names: Yuehao
+  - family-names: Dong
+    given-names: Jiankun
+  - family-names: Wang
+    given-names: Tianhang
+  - family-names: Zhou
+    given-names: Sunyao
+  - family-names: Wu
+    given-names: Yunzi
+  - family-names: Sun
+    given-names: Chengnuo
+  - family-names: Ge
+    given-names: Yunfei
+  - family-names: Weng
+    given-names: Qizhen
+  - family-names: Zhang
+    given-names: Chi
+  - family-names: Bai
+    given-names: Chenjia
+  - family-names: Li
+    given-names: Xuelong
+keywords:
+  - vision-language navigation
+  - embodied AI
+  - gaussian splatting
+preferred-citation:
+  type: article
+  title: "GN0: Toward a Unified Paradigm for Generation, Evaluation, and Policy Learning in Visual-Language Navigation"
+  authors:
+    - family-names: Li
+      given-names: Xinhai
+    - family-names: Zhang
+      given-names: Xiaotao
+    - family-names: Huang
+      given-names: Yuehao
+    - family-names: Dong
+      given-names: Jiankun
+    - family-names: Wang
+      given-names: Tianhang
+    - family-names: Zhou
+      given-names: Sunyao
+    - family-names: Wu
+      given-names: Yunzi
+    - family-names: Sun
+      given-names: Chengnuo
+    - family-names: Ge
+      given-names: Yunfei
+    - family-names: Weng
+      given-names: Qizhen
+    - family-names: Zhang
+      given-names: Chi
+    - family-names: Bai
+      given-names: Chenjia
+    - family-names: Li
+      given-names: Xuelong
+  year: 2026
+  doi: "10.48550/arXiv.2606.03682"
+  url: "https://arxiv.org/abs/2606.03682"
