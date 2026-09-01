@@ -373,7 +373,7 @@ def run_episode(env: Env, agent, config) -> None:
             {"sim": env.sim, "goal_position": env.current_episode.goals[0].position}
         )
 
-        if stall_steps >= config.EVAL.STALL_PATIENCE:
+        if stall_steps > config.EVAL.STALL_PATIENCE:
             LOGGER.warning("[Early Stop] Stall patience exceeded at step %s", step)
             action = {"action": STOP_ACTION_ID}
         else:

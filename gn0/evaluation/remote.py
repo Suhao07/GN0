@@ -528,7 +528,7 @@ def run_episode(
             stall_steps = 0 if curr_dtg != last_dtg else stall_steps + 1
             last_dtg = curr_dtg
 
-            if stall_steps >= config.EVAL.STALL_PATIENCE:
+            if stall_steps > config.EVAL.STALL_PATIENCE:
                 if (
                     enable_stall_recovery
                     and recovery_attempts < STALL_RECOVERY_MAX_ATTEMPTS
