@@ -295,6 +295,7 @@ class RemoteNavAgent(Agent):
         self.pending_action_metadata = []
         self.pending_action_type = "auto"
         self._pending_chunk_stop_distance = None
+        self.stop_action_residual = None
         self.episode_stop_reason = None
         self.chunk_base_rotation = None
         self.frames_since_query = []
@@ -372,6 +373,7 @@ class RemoteNavAgent(Agent):
             stop_action = np.zeros(3, dtype=np.float32)
             if self._maybe_arm_stop_teacher_rescue(observations, info, sim):
                 return self._pop_teacher_action(sim)
+            self.stop_action_residual = self._nav_stop_residual(self._chunk_stop_actions)
             self.history_actions.append(self._history_value(stop_action, "nav_delta"))
             self.step_idx += 1
             self._set_pending_primitive(
@@ -428,6 +430,7 @@ class RemoteNavAgent(Agent):
                     self.history_actions.pop()
                 self.step_idx = max(0, self.step_idx - 1)
                 return self._pop_teacher_action(sim)
+            self.stop_action_residual = self._nav_stop_residual([nav_delta, *self.pending_actions])
             self.pending_actions = []
             self.pending_action_metadata = []
             self._set_pending_primitive(
@@ -446,6 +449,16 @@ class RemoteNavAgent(Agent):
             action_metadata=action_metadata,
         )
         return self._nav_delta_to_env_action(sim, nav_delta)
+
+    @staticmethod
+    def _nav_stop_residual(actions) -> dict[str, float | int]:
+        # 统计触发 STOP 的动作及返回块内未执行后缀；平移取路径长度，避免往返抵消。
+        delta = np.asarray(actions, dtype=np.float32)
+        return {
+            "steps": len(delta),
+            "translation_m": float(np.linalg.norm(delta[:, :2], axis=1).sum()),
+            "rotation_rad": float(np.abs(delta[:, 2]).sum()),
+        }
 
     def make_stall_recovery_action(
         self,
@@ -547,6 +560,7 @@ class RemoteNavAgent(Agent):
         keep = 0 if chunk_stop else min(self.action_num, len(actions))
         self.pending_actions = [] if chunk_stop else list(actions[:keep])
         self.pending_action_type = action_type
+        self._chunk_stop_actions = actions if chunk_stop else None
         self._pending_chunk_stop_distance = chunk_distance if chunk_stop else None
         self.pending_action_metadata = []
         if trace_ref is not None:

@@ -457,11 +457,13 @@ def evaluate_agent(
             final_metrics = None
             stop_reason = None
             try:
+                stop_diagnostics = {}
                 stop_reason = run_episode(
                     env,
                     agent,
                     config,
                     enable_stall_recovery=enable_stall_recovery,
+                    stop_diagnostics=stop_diagnostics,
                 )
                 final_metrics = env.get_metrics()
                 episode_completed = True
@@ -478,6 +480,7 @@ def evaluate_agent(
                 final_info=final_metrics,
                 wam_episode_manifest=episode_manifest_ref,
                 stop_reason=stop_reason,
+                stop_diagnostics=stop_diagnostics,
                 execution_stats={
                     "environment_steps": agent.executed_steps,
                     "motion_steps": agent.executed_motion_steps,
@@ -497,9 +500,15 @@ def run_episode(
     config,
     *,
     enable_stall_recovery: bool = False,
+    stop_diagnostics: dict[str, Any] | None = None,
 ) -> str:
     obs = env.reset()
     agent.reset(Path(env.current_episode.ref_json), sim=env.sim)
+
+    success_distance = config.TASK_CONFIG.TASK.SUCCESS.SUCCESS_DISTANCE
+    reached_goal = env.get_metrics()["distance_to_goal"] < success_distance
+    initial_false_stop = False
+    goal_nonstop_steps = 0
 
     last_dtg = float("inf")
     stall_steps = 0
@@ -568,8 +577,15 @@ def run_episode(
                 if agent_stop_reason is not None:
                     stop_reason = str(agent_stop_reason)
 
+        # 使用官方成功半径；恢复/强制截断的 STOP 不计作模型起点误停。
+        in_goal = info["distance_to_goal"] < success_distance
+        is_stop = action["action"] == STOP_ACTION_ID
+        if step == 0 and is_stop and action_source is None:
+            initial_false_stop = not in_goal and not str(stop_reason).startswith("dagger")
+        goal_nonstop_steps += int(in_goal and not is_stop)
         obs = env.step(action)
         after_info = env.get_metrics()
+        reached_goal |= after_info["distance_to_goal"] < success_distance
         record_step_result = getattr(agent, "record_step_result", None)
         if callable(record_step_result):
             record_step_result(
@@ -579,6 +595,16 @@ def run_episode(
                 episode_over=env.episode_over,
                 action_source=action_source,
             )
+
+    if stop_diagnostics is not None:
+        stop_diagnostics.update(
+            initial_false_stop=initial_false_stop,
+            reached_goal=bool(reached_goal),
+            goal_nonstop_steps=goal_nonstop_steps,
+            # 到达过成功半径但未成功结束，包括离开目标后才停止。
+            missed_goal_stop=bool(reached_goal and not env.get_metrics()["success"]),
+            action_residual=agent.stop_action_residual,
+        )
 
     if stop_reason is not None:
         return stop_reason
@@ -595,6 +621,7 @@ def save_episode_metrics(
     wam_episode_manifest: dict[str, Any] | None = None,
     stop_reason: str | None = None,
     execution_stats: dict[str, int] | None = None,
+    stop_diagnostics: dict[str, Any] | None = None,
 ) -> None:
     if final_info is None:
         final_info = env.get_metrics()
@@ -603,6 +630,8 @@ def save_episode_metrics(
     results["status"] = "complete"
     results["episode_complete"] = True
     results["stop"] = str(stop_reason or "unknown")
+    if stop_diagnostics is not None:
+        results["stop_diagnostics"] = stop_diagnostics
     if execution_stats is not None:
         results["execution"] = execution_stats
     if wam_episode_manifest is not None:

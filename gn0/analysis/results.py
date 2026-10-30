@@ -4,6 +4,7 @@ import math
 import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Any
 
 
 def sanitize_metric(value):
@@ -35,30 +36,47 @@ class MetricSummary:
     success_rate: float
     spl_total: float
     spl: float
+    stop_diagnostics: dict[str, Any] | None = None
 
 
-def load_metric_records(log_dir: Path) -> list[dict[str, float]]:
-    records: list[dict[str, float]] = []
+def load_metric_records(log_dir: Path) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
     for file_path in sorted(log_dir.glob("*.json")):
         try:
             with file_path.open("r", encoding="utf-8") as handle:
                 payload = json.load(handle)
             if not isinstance(payload, dict):
                 raise ValueError("top-level JSON value is not an object")
-            records.append(
-                {key: sanitize_metric(payload.get(key, 0)) for key in METRIC_KEYS}
-            )
+            record = {key: sanitize_metric(payload.get(key, 0)) for key in METRIC_KEYS}
+            if "stop_diagnostics" in payload:
+                record["stop_diagnostics"] = payload["stop_diagnostics"]
+            records.append(record)
         except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
             print(f"Warning: skipped {file_path.name}: {exc}", file=sys.stderr)
     return records
 
 
-def summarize_metric_records(records: list[dict[str, float]]) -> MetricSummary:
+def summarize_metric_records(records: list[dict[str, Any]]) -> MetricSummary:
     total = len(records)
     if total == 0:
         raise ValueError("cannot summarize an empty record set")
 
     totals = {key: sum(record[key] for record in records) for key in METRIC_KEYS}
+    diagnostics = [record["stop_diagnostics"] for record in records if "stop_diagnostics" in record]
+    stop_summary = None
+    if diagnostics:
+        arrived = sum(item["reached_goal"] for item in diagnostics)
+        residuals = [item["action_residual"] for item in diagnostics if item["action_residual"] is not None]
+        stop_summary = {
+            "episodes": len(diagnostics),
+            "initial_false_stop_rate": sum(item["initial_false_stop"] for item in diagnostics) / len(diagnostics),
+            "arrived_episodes": arrived,
+            "missed_goal_stop_rate": sum(item["missed_goal_stop"] for item in diagnostics) / arrived if arrived else None,
+            "goal_nonstop_steps": sum(item["goal_nonstop_steps"] for item in diagnostics),
+            "residual_episodes": len(residuals),
+            "mean_stop_translation_m": sum(item["translation_m"] for item in residuals) / len(residuals) if residuals else None,
+            "mean_stop_rotation_rad": sum(item["rotation_rad"] for item in residuals) / len(residuals) if residuals else None,
+        }
     return MetricSummary(
         episodes=total,
         trajectory_length=totals["path_length"] / total,
@@ -69,6 +87,7 @@ def summarize_metric_records(records: list[dict[str, float]]) -> MetricSummary:
         success_rate=totals["success"] / total,
         spl_total=totals["spl"],
         spl=totals["spl"] / total,
+        stop_diagnostics=stop_summary,
     )
 
 
@@ -100,6 +119,17 @@ def format_metric_summary(summary: MetricSummary, output_format: str) -> str:
             f"{summary.spl:.1%}  (mean {summary.spl:.3f})",
         ),
     )
+    if summary.stop_diagnostics is not None:
+        stop = summary.stop_diagnostics
+        missed = stop["missed_goal_stop_rate"]
+        translation = stop["mean_stop_translation_m"]
+        rotation = stop["mean_stop_rotation_rad"]
+        rows += (
+            ("IFS ↓", f"Initial false stop ({stop['episodes']} diagnosed episodes)", f"{stop['initial_false_stop_rate']:.1%}"),
+            ("MGS ↓", f"Missed goal stop ({stop['arrived_episodes']} arrived episodes)", f"{missed:.1%}" if missed is not None else "N/A"),
+            ("STR ↓", f"Stop translation residual ({stop['residual_episodes']} episodes)", f"{translation:.4f} m" if translation is not None else "N/A"),
+            ("SRR ↓", "Stop rotation residual", f"{rotation:.4f} rad" if rotation is not None else "N/A"),
+        )
     key_width = max(len(key) for key, _, _ in rows) + 2
     value_width = max(len(value) for _, _, value in rows)
     lines = [
