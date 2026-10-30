@@ -478,6 +478,12 @@ def evaluate_agent(
                 final_info=final_metrics,
                 wam_episode_manifest=episode_manifest_ref,
                 stop_reason=stop_reason,
+                execution_stats={
+                    "environment_steps": agent.executed_steps,
+                    "motion_steps": agent.executed_motion_steps,
+                    "stop_steps": agent.executed_steps - agent.executed_motion_steps,
+                    "query_count": agent.query_count,
+                },
             )
     finally:
         close_agent = getattr(agent, "close", None)
@@ -588,6 +594,7 @@ def save_episode_metrics(
     final_info: dict[str, Any] | None = None,
     wam_episode_manifest: dict[str, Any] | None = None,
     stop_reason: str | None = None,
+    execution_stats: dict[str, int] | None = None,
 ) -> None:
     if final_info is None:
         final_info = env.get_metrics()
@@ -596,6 +603,8 @@ def save_episode_metrics(
     results["status"] = "complete"
     results["episode_complete"] = True
     results["stop"] = str(stop_reason or "unknown")
+    if execution_stats is not None:
+        results["execution"] = execution_stats
     if wam_episode_manifest is not None:
         if wam_episode_manifest.get("status") != "complete":
             raise RuntimeError(

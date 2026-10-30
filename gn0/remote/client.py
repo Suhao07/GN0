@@ -165,6 +165,7 @@ class RemoteNavClient:
         rollout_seed: int | None = None,
         query_id: int | None = None,
         wam_trace_mode: str = "none",
+        pose_history: np.ndarray | None = None,
     ) -> dict[str, Any]:
         rgb = self._ensure_rgb_array(rgb, name="rgb")
 
@@ -184,6 +185,9 @@ class RemoteNavClient:
 
         if state is not None:
             obs["state.nav_pose"] = np.asarray(state, dtype=np.float32).reshape(3)
+
+        if pose_history is not None:
+            obs["state.nav_pose_history"] = np.asarray(pose_history, dtype=np.float32)
 
         trace_mode = str(wam_trace_mode or "none").strip().lower()
         if trace_mode not in {"none", "sidecar"}:

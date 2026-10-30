@@ -233,6 +233,7 @@ class RemoteNavAgent(Agent):
             metadata_timeout=metadata_timeout,
         )
         print("Remote nav server metadata:", self.client.metadata)
+        self.send_pose_history = bool(self.client.metadata.get("history_pose_tokens", False))
         self.wam_trace_metadata: dict[str, Any] = {}
         self.wam_policy_version: int | None = None
         if self.wam_trace_mode == "sidecar":
@@ -263,8 +264,11 @@ class RemoteNavAgent(Agent):
         self.episode_stop_reason: str | None = None
         self.chunk_base_rotation: R | None = None
         self.frames_since_query: list[np.ndarray] = []
+        self.poses_since_query: list[np.ndarray] = []
         self.query_count = 0
         self.step_idx = 0
+        self.executed_steps = 0
+        self.executed_motion_steps = 0
         self.history_actions: list[Any] = []
         self.history_frames: list[np.ndarray] = []
         self.history_positions: list[np.ndarray] = []
@@ -294,8 +298,11 @@ class RemoteNavAgent(Agent):
         self.episode_stop_reason = None
         self.chunk_base_rotation = None
         self.frames_since_query = []
+        self.poses_since_query = []
         self.query_count = 0
         self.step_idx = 0
+        self.executed_steps = 0
+        self.executed_motion_steps = 0
         self.history_actions = []
         self.history_frames = []
         self.history_positions = []
@@ -331,7 +338,7 @@ class RemoteNavAgent(Agent):
 
         rgb = observations.get("rgb")
         if rgb is not None:
-            self._record_rgb(rgb)
+            self._record_rgb(rgb, sim)
             if self.dagger_enabled:
                 self._record_policy_history(rgb, sim)
             if self.save_images or self.save_video:
@@ -448,7 +455,7 @@ class RemoteNavAgent(Agent):
     ) -> dict[str, Any]:
         rgb = observations.get("rgb")
         if rgb is not None:
-            self._record_rgb(rgb)
+            self._record_rgb(rgb, sim)
             if self.dagger_enabled:
                 self._record_policy_history(rgb, sim)
             if self.save_images or self.save_video:
@@ -506,12 +513,18 @@ class RemoteNavAgent(Agent):
                 self.episode_id,
                 query_id,
             )
+        pose_history = None
+        if self.send_pose_history:
+            pose_history = (
+                self._nav_pose(sim)[None] if image_chunk is None else np.stack(self.poses_since_query)
+            )
         response = self.client.infer(
             rgb=current_rgb,
             images=image_chunk,
             instruction=instruction,
             session_id=self.episode_id,
             state=state,
+            pose_history=pose_history,
             rollout_seed=rollout_seed,
             query_id=query_id if rollout_seed is not None else None,
             wam_trace_mode=self.wam_trace_mode,
@@ -523,6 +536,7 @@ class RemoteNavAgent(Agent):
         )
         self.query_count += 1
         self.frames_since_query = []
+        self.poses_since_query = []
 
         action_type, actions = self._extract_actions(response)
         chunk_distance = None
@@ -698,8 +712,10 @@ class RemoteNavAgent(Agent):
         episode_over: bool,
         action_source: str | None = None,
     ) -> None:
-        """Join one executed primitive to its immutable behavior-policy trace."""
+        """Count actual env.step calls and join enabled behavior-policy traces."""
 
+        self.executed_steps += 1
+        self.executed_motion_steps += int(env_action["action"] != ACTION_STOP)
         if self.wam_trace_mode == "none":
             self._pending_primitive_record = None
             return
@@ -1008,16 +1024,21 @@ class RemoteNavAgent(Agent):
         diff = (float(a) - float(b) + math.pi) % (2.0 * math.pi) - math.pi
         return abs(diff)
 
-    def _record_rgb(self, rgb: np.ndarray) -> None:
+    def _record_rgb(self, rgb: np.ndarray, sim) -> None:
         frame = np.asarray(rgb)
         if frame.ndim != 3 or frame.shape[-1] != 3:
             return
         if frame.dtype != np.uint8:
             frame = np.clip(frame, 0, 255).astype(np.uint8)
         self.frames_since_query.append(np.ascontiguousarray(frame.copy()))
+        if self.send_pose_history:
+            # 图像与实际位姿在同一次观测中采集，碰撞和恢复动作后的偏差也被保留。
+            self.poses_since_query.append(self._nav_pose(sim).copy())
         max_history = max(64, self.action_num * 4)
         if len(self.frames_since_query) > max_history:
             self.frames_since_query = self.frames_since_query[-max_history:]
+            if self.send_pose_history:
+                self.poses_since_query = self.poses_since_query[-max_history:]
 
     def _record_policy_history(self, rgb: np.ndarray, sim) -> None:
         frame = np.asarray(rgb)
